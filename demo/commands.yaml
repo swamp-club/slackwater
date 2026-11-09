@@ -1,0 +1,33 @@
+# Slackwater's commands for the scale-the-web-tier demo.
+#
+# Copy this file to ./commands.yaml (or point SLACKWATER_COMMANDS at it), then
+# run `deno task manifest` to build the Slack app manifest from it.
+
+# What a person agrees Slackwater may do for them when they link. It must fit
+# inside the ceiling the integration was registered with:
+#   swamp access integration register slackwater --name Slackwater \
+#     --ceiling 'run,read,approve=workflow:scale-web' --require-email-match
+# `read` lets the app follow a run and find its approval gate.
+ceiling:
+  - actions: [run, read, approve]
+    resource: "workflow:scale-web"
+
+commands:
+  - command: /scale-web
+    workflow: scale-web
+    title: Scale the web tier
+    description: Change how many web servers are running
+    usageHint: opens a form
+    report: channel
+    fields:
+      - name: count
+        label: How many web servers
+        type: number
+        min: 0
+        max: 4
+        initial: 2
+        hint: Each one is a t4g.nano. 0 stops them all.
+      - name: reason
+        label: Why
+        type: text
+        placeholder: Traffic spike from the launch email

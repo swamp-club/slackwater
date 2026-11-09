@@ -422,7 +422,7 @@ Deno.test("a run in a channel the app isn't in goes to the person's DMs", async 
     );
     await app.onCommand(cmd("/slackwater", "run x"), ack, respond);
     assertEquals(slack.of("post")[0].channel, PAT.userId);
-    assertStringIncludes(responses[0].text, "/invite @Swamp");
+    assertStringIncludes(responses[0].text, "Invite me to the channel");
     assertEquals((await store.listRuns())[0].channel, "D0001");
   });
 });

@@ -77,6 +77,8 @@ export interface AppDeps {
   /** the workspace the app is installed in, from `auth.test` */
   teamId: string;
   workspaceName: string;
+  /** the app's own bot user id, from `auth.test`, so it can mention itself */
+  botUserId?: string;
   log: Log;
   now?: () => number;
 }
@@ -237,7 +239,8 @@ export class Slackwater {
       posted = await this.#d.slack.postMessage(person.userId, first);
       await where.tell({
         text: "I can't post in that channel, so I've put the run in our direct messages. " +
-          "Invite me with `/invite @Swamp` to post runs there.",
+          `Invite ${this.#d.botUserId ? `<@${this.#d.botUserId}>` : "me"} to the channel ` +
+          "to post runs there.",
       });
     }
     await this.#d.store.putRun({

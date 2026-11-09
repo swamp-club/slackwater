@@ -10,7 +10,8 @@
 
 import { type CommandsFile, loadCommands } from "../src/commands.ts";
 
-export function buildManifest(file: CommandsFile, name = "Swamp") {
+export function buildManifest(file: CommandsFile) {
+  const name = file.appName;
   return {
     display_information: {
       name,
@@ -23,7 +24,7 @@ export function buildManifest(file: CommandsFile, name = "Swamp") {
         messages_tab_enabled: true,
         messages_tab_read_only_enabled: true,
       },
-      bot_user: { display_name: name.toLowerCase(), always_online: true },
+      bot_user: { display_name: file.botName, always_online: true },
       slash_commands: [
         {
           command: file.appCommand,

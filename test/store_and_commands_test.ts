@@ -123,3 +123,14 @@ Deno.test("the app's own command is /slackwater unless the file names another", 
   assertEquals(parseCommands(`appCommand: /ops\n${base}`).appCommand, "/ops");
   assertThrows(() => parseCommands(`appCommand: ops\n${base}`), Error, "appCommand must be");
 });
+
+Deno.test("the app is called Swamp and mentioned as @slackwater, and Slack's naming rule is checked", () => {
+  const base = `ceiling:\n  - actions: [run]\n    resource: "workflow:x"\ncommands: []\n`;
+  const file = parseCommands(base);
+  assertEquals([file.appName, file.botName], ["Swamp", "slackwater"]);
+  assertThrows(
+    () => parseCommands(`appName: Slackwater\n${base}`),
+    Error,
+    'can\'t contain "Slack"',
+  );
+});

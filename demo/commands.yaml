@@ -7,6 +7,11 @@
 # Defaults to /slackwater (DEFAULT_APP_COMMAND in src/commands.ts).
 appCommand: /slackwater
 
+# The app's name in Slack (it can't contain "Slack"), and the bot user's name,
+# which is how people @mention it. These are the defaults.
+appName: Swamp
+botName: slackwater
+
 # What a person agrees Slackwater may do for them when they link. It must fit
 # inside the ceiling the integration was registered with:
 #   swamp access integration register slackwater --name Slackwater \

@@ -62,6 +62,10 @@ export interface Command {
 export interface CommandsFile {
   /** the app's own command, `/slackwater` unless the file says otherwise */
   appCommand: string;
+  /** the app's name in Slack, `Swamp` unless the file says otherwise */
+  appName: string;
+  /** the bot user's name, `@slackwater` unless the file says otherwise */
+  botName: string;
   ceiling: Ceiling;
   commands: Command[];
 }
@@ -71,6 +75,15 @@ export interface CommandsFile {
  * here, or set `appCommand` in the commands file.
  */
 export const DEFAULT_APP_COMMAND = "/slackwater";
+
+/**
+ * The app's name in Slack. Slack refuses app names containing "Slack", so
+ * this can't be "Slackwater". Set `appName` in the commands file to change it.
+ */
+export const DEFAULT_APP_NAME = "Swamp";
+
+/** The bot user's name, which is how people @mention the app. Set `botName` to change it. */
+export const DEFAULT_BOT_NAME = "slackwater";
 
 export async function loadCommands(path: string): Promise<CommandsFile> {
   let text: string;
@@ -115,6 +128,13 @@ export function parseCommands(text: string, where = "commands file"): CommandsFi
   if (!COMMAND_NAME.test(appCommand)) {
     problems.push("appCommand must be a slash and up to 31 lowercase letters, digits, - or _");
   }
+  const appName = typeof doc.appName === "string" ? doc.appName : DEFAULT_APP_NAME;
+  if (!appName.trim() || appName.length > 35) problems.push("appName must be 1 to 35 characters");
+  if (/slack/i.test(appName)) problems.push('appName can\'t contain "Slack": Slack refuses it');
+  const botName = typeof doc.botName === "string" ? doc.botName : DEFAULT_BOT_NAME;
+  if (!/^[a-z0-9][a-z0-9._-]{0,79}$/.test(botName)) {
+    problems.push("botName must be lowercase letters, digits, ., - or _");
+  }
   const seen = new Set<string>([appCommand]);
   const commands = commandRows.map((row, i): Command => {
     const at = `commands[${i}]`;
@@ -158,7 +178,7 @@ export function parseCommands(text: string, where = "commands file"): CommandsFi
   if (problems.length > 0) {
     throw new SetupError(`${where} has problems:\n  - ${problems.join("\n  - ")}`);
   }
-  return { appCommand, ceiling, commands };
+  return { appCommand, appName, botName, ceiling, commands };
 }
 
 function parseField(row: unknown, at: string, problems: string[]): Field {

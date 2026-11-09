@@ -78,6 +78,7 @@ async function main() {
     commands,
     teamId: who.team_id,
     workspaceName: who.team ?? who.team_id,
+    botUserId: who.user_id,
     log,
   });
 

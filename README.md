@@ -104,7 +104,7 @@ ceiling only limits what the app may do; it never adds to what a person may do.
    token.
 4. Under **Install App**, install it to the workspace. This gives the **Bot User OAuth Token**,
    `xoxb-…`.
-5. Invite the app to any channel where runs should be posted: `/invite @Swamp`.
+5. Invite the app to any channel where runs should be posted: `/invite @slackwater`.
 
 When the commands file changes, rebuild the manifest and paste it into the app's **App Manifest**
 page. Slack only delivers commands that the manifest lists.
@@ -143,6 +143,8 @@ inputs:
 
 ```yaml
 appCommand: /slackwater # the app's own command; this is the default
+appName: Swamp # the app's name in Slack, which can't contain "Slack"
+botName: slackwater # how people @mention the app
 ceiling: # what a person agrees the app may do for them; must fit the integration's ceiling
   - actions: [run, read, approve]
     resource: "workflow:scale-web"

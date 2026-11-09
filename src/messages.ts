@@ -60,23 +60,23 @@ export const linked = (username: string | undefined): Message => ({
     : "You're linked to swamp. Swamp will act as you, within what you agreed to.",
 });
 
-export const linkRefused = (reason: string): Message => ({
+export const linkRefused = (reason: string, app: string): Message => ({
   text: reason === "email_mismatch"
     ? "Linking was refused: your Slack email doesn't match your swamp-club email."
-    : `Linking was refused (${esc(reason)}). Run \`/swamp link\` to try again.`,
+    : `Linking was refused (${esc(reason)}). Run \`${app} link\` to try again.`,
 });
 
-export const linkEnded = (): Message => ({
-  text: "That link request ended before it was finished. Run `/swamp link` to start again.",
+export const linkEnded = (app: string): Message => ({
+  text: `That link request ended before it was finished. Run \`${app} link\` to start again.`,
 });
 
-export const notLinked = (): Message => ({
-  text: "You haven't linked your swamp account yet. Run `/swamp link` first.",
+export const notLinked = (app: string): Message => ({
+  text: `You haven't linked your swamp account yet. Run \`${app} link\` first.`,
 });
 
-export const linkGone = (): Message => ({
+export const linkGone = (app: string): Message => ({
   text: "Your swamp link has ended, so Swamp can't act for you any more. " +
-    "Run `/swamp link` to link again.",
+    `Run \`${app} link\` to link again.`,
 });
 
 export const notAdmitted = (): Message => ({
@@ -95,13 +95,13 @@ export const otherWorkspace = (): Message => ({
   text: "Swamp only works for people in its own Slack workspace.",
 });
 
-export const help = (commands: Command[]): Message => ({
+export const help = (app: string, commands: Command[]): Message => ({
   text: [
     "*Swamp* runs swamp workflows as you.",
-    "• `/swamp link`: link your swamp account",
-    "• `/swamp status`: show who you're linked as",
-    "• `/swamp run <workflow> [name=value …]`: run a workflow",
-    "• `/swamp unlink`: stop Swamp acting for you",
+    `• \`${app} link\`: link your swamp account`,
+    `• \`${app} status\`: show who you're linked as`,
+    `• \`${app} run <workflow> [name=value …]\`: run a workflow`,
+    `• \`${app} unlink\`: stop Swamp acting for you`,
     ...commands.map((c) => `• \`${c.command}\`: ${esc(c.description)}`),
   ].join("\n"),
 });
@@ -355,7 +355,7 @@ export function readForm(
   return Object.keys(errors).length > 0 ? { errors } : { inputs };
 }
 
-/** Parse `name=value` words from `/swamp run`. Values that look like numbers stay strings. */
+/** Parse `name=value` words from `<app command> run`. Values that look like numbers stay strings. */
 export function parseInputs(words: string[]): Record<string, string> | string {
   const inputs: Record<string, string> = {};
   for (const word of words) {

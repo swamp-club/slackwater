@@ -60,12 +60,17 @@ export interface Command {
 }
 
 export interface CommandsFile {
+  /** the app's own command, `/slackwater` unless the file says otherwise */
+  appCommand: string;
   ceiling: Ceiling;
   commands: Command[];
 }
 
-/** `/swamp` is the app's own command, for linking and the generic run. */
-export const BUILTIN_COMMAND = "/swamp";
+/**
+ * The app's own command, for linking, status and the generic run. Change it
+ * here, or set `appCommand` in the commands file.
+ */
+export const DEFAULT_APP_COMMAND = "/slackwater";
 
 export async function loadCommands(path: string): Promise<CommandsFile> {
   let text: string;
@@ -106,17 +111,21 @@ export function parseCommands(text: string, where = "commands file"): CommandsFi
   };
 
   const commandRows = Array.isArray(doc.commands) ? doc.commands : [];
-  const seen = new Set<string>([BUILTIN_COMMAND]);
+  const appCommand = typeof doc.appCommand === "string" ? doc.appCommand : DEFAULT_APP_COMMAND;
+  if (!COMMAND_NAME.test(appCommand)) {
+    problems.push("appCommand must be a slash and up to 31 lowercase letters, digits, - or _");
+  }
+  const seen = new Set<string>([appCommand]);
   const commands = commandRows.map((row, i): Command => {
     const at = `commands[${i}]`;
     const r = isRecord(row) ? row : {};
     const command = String(r.command ?? "");
-    if (!/^\/[a-z0-9_-]{1,31}$/.test(command)) {
+    if (!COMMAND_NAME.test(command)) {
       problems.push(
         `${at}: command must be a slash and up to 31 lowercase letters, digits, - or _`,
       );
     } else if (seen.has(command)) {
-      problems.push(`${at}: ${command} is listed twice, or clashes with ${BUILTIN_COMMAND}`);
+      problems.push(`${at}: ${command} is listed twice, or clashes with ${appCommand}`);
     }
     seen.add(command);
     if (typeof r.workflow !== "string" || !r.workflow) problems.push(`${at}: workflow is required`);
@@ -149,7 +158,7 @@ export function parseCommands(text: string, where = "commands file"): CommandsFi
   if (problems.length > 0) {
     throw new SetupError(`${where} has problems:\n  - ${problems.join("\n  - ")}`);
   }
-  return { ceiling, commands };
+  return { appCommand, ceiling, commands };
 }
 
 function parseField(row: unknown, at: string, problems: string[]): Field {
@@ -184,6 +193,8 @@ function parseField(row: unknown, at: string, problems: string[]): Field {
     multiline: r.multiline === true,
   };
 }
+
+const COMMAND_NAME = /^\/[a-z0-9_-]{1,31}$/;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);

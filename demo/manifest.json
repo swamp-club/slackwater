@@ -16,7 +16,7 @@
     },
     "slash_commands": [
       {
-        "command": "/swamp",
+        "command": "/slackwater",
         "description": "Link your swamp account, or run a workflow",
         "usage_hint": "link | status | run <workflow> [name=value …] | unlink",
         "should_escape": false

@@ -97,11 +97,14 @@ export class Slackwater {
   readonly #runNext = new Map<string, number>();
   readonly #linkNext = new Map<string, number>();
   readonly #byCommand: Map<string, Command>;
+  /** the app's own command, such as `/slackwater` */
+  readonly #app: string;
   #ticking = false;
 
   constructor(deps: AppDeps) {
     this.#d = deps;
     this.#now = deps.now ?? Date.now;
+    this.#app = deps.commands.appCommand;
     this.#byCommand = new Map(deps.commands.commands.map((c) => [c.command, c]));
   }
 
@@ -116,6 +119,7 @@ export class Slackwater {
 
     const custom = this.#byCommand.get(cmd.command);
     if (custom) return this.#onCustomCommand(custom, cmd, person, respond);
+    if (cmd.command !== this.#app) return; // not one of ours: the manifest is out of date
 
     const [sub = "help", ...rest] = cmd.text.trim().split(/\s+/).filter(Boolean);
     switch (sub.toLowerCase()) {
@@ -128,7 +132,7 @@ export class Slackwater {
       case "run":
         return this.#genericRun(cmd, person, rest, respond);
       default:
-        return respond(msg.help(this.#d.commands.commands));
+        return respond(msg.help(this.#app, this.#d.commands.commands));
     }
   }
 
@@ -140,7 +144,7 @@ export class Slackwater {
   ): Promise<void> {
     // Check the link locally only: the form must open while the trigger is
     // fresh, so there's no time for a serve call here.
-    if (!(await this.#d.store.getLink(person))) return respond(msg.notLinked());
+    if (!(await this.#d.store.getLink(person))) return respond(msg.notLinked(this.#app));
     const channel = command.report === "dm" ? cmd.userId : cmd.channelId;
     if (command.fields.length === 0) {
       return this.#startRun(person, command.workflow, {}, `slack.${cmd.teamId}.${cmd.triggerId}`, {
@@ -162,10 +166,12 @@ export class Slackwater {
 
   async #genericRun(cmd: SlashCommand, person: PersonKey, words: string[], respond: Respond) {
     const [workflow, ...pairs] = words;
-    if (!workflow) return respond({ text: "Usage: `/swamp run <workflow> [name=value …]`" });
+    if (!workflow) {
+      return respond({ text: `Usage: \`${this.#app} run <workflow> [name=value …]\`` });
+    }
     const inputs = msg.parseInputs(pairs);
     if (typeof inputs === "string") {
-      return respond({ text: `${inputs}. Usage: \`/swamp run <workflow> [name=value …]\`` });
+      return respond({ text: `${inputs}. Usage: \`${this.#app} run <workflow> [name=value …]\`` });
     }
     await this.#startRun(person, workflow, inputs, `slack.${cmd.teamId}.${cmd.triggerId}`, {
       title: workflow,
@@ -402,7 +408,7 @@ export class Slackwater {
       this.#linkNext.delete(key(person));
       await this.#dm(person, message);
     };
-    if (this.#now() > pending.giveUpAt) return done(msg.linkEnded());
+    if (this.#now() > pending.giveUpAt) return done(msg.linkEnded(this.#app));
     try {
       const outcome = await this.#d.serve.redeem(pending.pendingId, pending.redeemSecret);
       switch (outcome.status) {
@@ -420,17 +426,19 @@ export class Slackwater {
           return done(msg.linked(outcome.person.username));
         case "refused":
           this.#d.log("link_refused", { reason: outcome.reason });
-          return done(msg.linkRefused(outcome.reason));
+          return done(msg.linkRefused(outcome.reason, this.#app));
         case "ended":
           this.#d.log("link_ended", { cause: outcome.cause });
-          return done(msg.linkEnded());
+          return done(msg.linkEnded(this.#app));
       }
     } catch (error) {
       if (!(error instanceof ServeError)) throw error;
       this.#d.log("redeem_failed", { code: error.code });
       if (error.code === "already_redeemed") {
         // Tokens were handed out but the reply never arrived. They're lost.
-        return done({ text: "Linking didn't finish properly. Run `/swamp link` to try again." });
+        return done({
+          text: `Linking didn't finish properly. Run \`${this.#app} link\` to try again.`,
+        });
       }
       const wait = (error.retryAfterSeconds ?? pending.interval) * 1000;
       this.#linkNext.set(key(person), this.#now() + wait);
@@ -464,7 +472,7 @@ export class Slackwater {
     if (await this.#d.store.getPending(person)) {
       return respond({ text: "Swamp is waiting for you to finish linking in swamp-club." });
     }
-    return respond(msg.notLinked());
+    return respond(msg.notLinked(this.#app));
   }
 
   // --- Background work --------------------------------------------------------
@@ -520,7 +528,7 @@ export class Slackwater {
     let token = await this.#d.tokens.accessToken(person);
     for (let attempt = 0;; attempt++) {
       if (!token.ok) {
-        await tell(tokenProblem(token));
+        await tell(tokenProblem(token, this.#app));
         return undefined;
       }
       try {
@@ -555,12 +563,12 @@ export class Slackwater {
   }
 }
 
-function tokenProblem(token: Exclude<TokenResult, { ok: true }>): Message {
+function tokenProblem(token: Exclude<TokenResult, { ok: true }>, app: string): Message {
   switch (token.why) {
     case "not_linked":
-      return msg.notLinked();
+      return msg.notLinked(app);
     case "link_ended":
-      return msg.linkGone();
+      return msg.linkGone(app);
     case "not_admitted":
       return msg.notAdmitted();
     case "serve_unavailable":

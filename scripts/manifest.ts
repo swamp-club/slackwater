@@ -8,7 +8,7 @@
  * the commands file changes: Slack only delivers commands the manifest lists.
  */
 
-import { BUILTIN_COMMAND, type CommandsFile, loadCommands } from "../src/commands.ts";
+import { type CommandsFile, loadCommands } from "../src/commands.ts";
 
 export function buildManifest(file: CommandsFile, name = "Swamp") {
   return {
@@ -26,7 +26,7 @@ export function buildManifest(file: CommandsFile, name = "Swamp") {
       bot_user: { display_name: name.toLowerCase(), always_online: true },
       slash_commands: [
         {
-          command: BUILTIN_COMMAND,
+          command: file.appCommand,
           description: "Link your swamp account, or run a workflow",
           usage_hint: "link | status | run <workflow> [name=value …] | unlink",
           should_escape: false,

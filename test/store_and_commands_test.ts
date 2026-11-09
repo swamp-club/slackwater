@@ -59,7 +59,7 @@ ceiling:
   - actions: [run, delete]
     resource: "model:x"
 commands:
-  - command: /swamp
+  - command: /slackwater
     workflow: x
     description: clashes
   - command: Bad
@@ -74,7 +74,7 @@ commands:
     const problem of [
       'unknown action "delete"',
       "resource must look like workflow:",
-      "clashes with /swamp",
+      "clashes with /slackwater",
       "command must be a slash",
       "workflow is required",
       "a select needs options",
@@ -115,4 +115,11 @@ Deno.test("demo/manifest.json is up to date with demo/commands.yaml", async () =
     "run: deno task manifest demo/commands.yaml > demo/manifest.json",
   );
   assert(!JSON.stringify(committed.display_information).toLowerCase().includes("slack"));
+});
+
+Deno.test("the app's own command is /slackwater unless the file names another", () => {
+  const base = `ceiling:\n  - actions: [run]\n    resource: "workflow:x"\ncommands: []\n`;
+  assertEquals(parseCommands(base).appCommand, "/slackwater");
+  assertEquals(parseCommands(`appCommand: /ops\n${base}`).appCommand, "/ops");
+  assertThrows(() => parseCommands(`appCommand: ops\n${base}`), Error, "appCommand must be");
 });

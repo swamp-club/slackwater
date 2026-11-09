@@ -3,6 +3,10 @@
 # Copy this file to ./commands.yaml (or point SLACKWATER_COMMANDS at it), then
 # run `deno task manifest` to build the Slack app manifest from it.
 
+# The app's own command, for linking, status and running any workflow.
+# Defaults to /slackwater (DEFAULT_APP_COMMAND in src/commands.ts).
+appCommand: /slackwater
+
 # What a person agrees Slackwater may do for them when they link. It must fit
 # inside the ceiling the integration was registered with:
 #   swamp access integration register slackwater --name Slackwater \

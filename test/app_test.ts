@@ -232,7 +232,7 @@ Deno.test("link: consent URL goes only to the person, then the poll stores token
     ];
     serve.on("/api/v1/delegations/redeem", () => redeems.shift()!);
 
-    await app.onCommand(cmd("/swamp", "link"), ack, respond);
+    await app.onCommand(cmd("/slackwater", "link"), ack, respond);
     assertStringIncludes(JSON.stringify(responses[0]), CONSENT_URL);
     const sentLink = serve.callsTo("/api/v1/delegations/links")[0].body;
     assertEquals((sentLink.external as Record<string, unknown>).email, "pat@example.com");
@@ -265,7 +265,7 @@ Deno.test("link: a refused link tells the person why", async () => {
       status: 200,
       body: { status: "refused", reason: "email_mismatch" },
     });
-    await app.onCommand(cmd("/swamp", "link"), ack, respond);
+    await app.onCommand(cmd("/slackwater", "link"), ack, respond);
     clock.now += 5_000;
     await app.tick();
     assertEquals(await store.getPending(PAT), undefined);
@@ -276,7 +276,7 @@ Deno.test("link: a refused link tells the person why", async () => {
 Deno.test("link: serve's refusal to start is explained without detail", async () => {
   await harness(async ({ serve, app, respond, responses }) => {
     serve.on("/api/v1/delegations/links", failure(400, "ceiling_too_wide"));
-    await app.onCommand(cmd("/swamp", "link"), ack, respond);
+    await app.onCommand(cmd("/slackwater", "link"), ack, respond);
     assertStringIncludes(responses[0].text, "isn't set up correctly");
   });
 });
@@ -285,7 +285,7 @@ Deno.test("unlink ends the link at serve and forgets the tokens", async () => {
   await harness(async ({ serve, store, app, respond, responses }) => {
     await store.putLink(linkFor());
     serve.on("/api/v1/delegations/end", { status: 200, body: { ended: true } });
-    await app.onCommand(cmd("/swamp", "unlink"), ack, respond);
+    await app.onCommand(cmd("/slackwater", "unlink"), ack, respond);
     assertEquals(serve.callsTo("/api/v1/delegations/end")[0].body, { token: REFRESH_TOKEN });
     assertEquals(await store.getLink(PAT), undefined);
     assertStringIncludes(responses[0].text, "Unlinked");
@@ -297,10 +297,10 @@ Deno.test("unlink ends the link at serve and forgets the tokens", async () => {
 Deno.test("an unlinked person gets the not-linked reply, and serve is never called", async () => {
   await harness(async ({ serve, slack, app, respond, responses }) => {
     await app.onCommand(cmd("/scale-web"), ack, respond);
-    await app.onCommand(cmd("/swamp", "run scale-web count=3"), ack, respond);
+    await app.onCommand(cmd("/slackwater", "run scale-web count=3"), ack, respond);
     assertEquals(responses.map((r) => r.text), [
-      "You haven't linked your swamp account yet. Run `/swamp link` first.",
-      "You haven't linked your swamp account yet. Run `/swamp link` first.",
+      "You haven't linked your swamp account yet. Run `/slackwater link` first.",
+      "You haven't linked your swamp account yet. Run `/slackwater link` first.",
     ]);
     await app.onButton(gateClick("gate_approve"), ack);
     assertStringIncludes(slack.texts("ephemeral").join(), "haven't linked");
@@ -312,7 +312,7 @@ Deno.test("someone from another workspace is refused", async () => {
   await harness(async ({ serve, store, app, respond, responses }) => {
     const stranger = { teamId: "T9999", userId: "U0001" };
     await store.putLink(linkFor(stranger));
-    await app.onCommand(cmd("/swamp", "run scale-web", stranger), ack, respond);
+    await app.onCommand(cmd("/slackwater", "run scale-web", stranger), ack, respond);
     assertStringIncludes(responses[0].text, "own Slack workspace");
     assertEquals(serve.calls, []);
   });
@@ -384,7 +384,7 @@ Deno.test("Slack resending a command starts one run, not two", async () => {
       "action:workflow.run",
       actionOk("workflow.run", { runId: "run-1", workflowName: "x", replayed: false }),
     );
-    const c = cmd("/swamp", "run x");
+    const c = cmd("/slackwater", "run x");
     await app.onCommand(c, ack, respond);
     await app.onCommand(c, ack, respond);
     assertEquals(serve.callsTo("/api/v1/action").length, 1);
@@ -398,7 +398,7 @@ Deno.test("a retry that serve replays doesn't post a second message", async () =
       "action:workflow.run",
       actionOk("workflow.run", { runId: "run-1", workflowName: "x", replayed: true }),
     );
-    await app.onCommand(cmd("/swamp", "run x"), ack, respond);
+    await app.onCommand(cmd("/slackwater", "run x"), ack, respond);
     assertEquals(slack.of("post"), []);
   });
 });
@@ -407,7 +407,7 @@ Deno.test("serve's refusal is reported in serve's terms", async () => {
   await harness(async ({ serve, store, app, respond, responses }) => {
     await store.putLink(linkFor());
     serve.on("action:workflow.run", failure(403, "forbidden"));
-    await app.onCommand(cmd("/swamp", "run not-in-ceiling"), ack, respond);
+    await app.onCommand(cmd("/slackwater", "run not-in-ceiling"), ack, respond);
     assertEquals(responses[0].text, "swamp refused: you don't have permission to do that.");
   });
 });
@@ -420,7 +420,7 @@ Deno.test("a run in a channel the app isn't in goes to the person's DMs", async 
       "action:workflow.run",
       actionOk("workflow.run", { runId: "run-1", workflowName: "x", replayed: false }),
     );
-    await app.onCommand(cmd("/swamp", "run x"), ack, respond);
+    await app.onCommand(cmd("/slackwater", "run x"), ack, respond);
     assertEquals(slack.of("post")[0].channel, PAT.userId);
     assertStringIncludes(responses[0].text, "/invite @Swamp");
     assertEquals((await store.listRuns())[0].channel, "D0001");
@@ -454,7 +454,7 @@ async function startedRun(
     "action:workflow.run",
     actionOk("workflow.run", { runId: "run-1", workflowName: "scale-web", replayed: false }),
   );
-  await h.app.onCommand(cmd("/swamp", "run scale-web"), ack, h.respond);
+  await h.app.onCommand(cmd("/slackwater", "run scale-web"), ack, h.respond);
 }
 
 const runView = (status: string, gate: string) => ({
@@ -579,7 +579,7 @@ Deno.test("a token near its end is refreshed before use", async () => {
       "action:workflow.run",
       actionOk("workflow.run", { runId: "run-1", workflowName: "x", replayed: false }),
     );
-    await h.app.onCommand(cmd("/swamp", "run x"), ack, h.respond);
+    await h.app.onCommand(cmd("/slackwater", "run x"), ack, h.respond);
     assertEquals(h.serve.callsTo("/api/v1/action")[0].authorization, `Bearer ${ACCESS_TOKEN_2}`);
     assertEquals((await h.store.getLink(PAT))?.refreshToken.reveal(), REFRESH_TOKEN);
   });
@@ -589,7 +589,7 @@ Deno.test("a refused refresh ends the link and tells the person to link again", 
   await harness(async (h) => {
     await h.store.putLink(linkFor(PAT, "2026-11-09T20:03:00.000Z"));
     h.serve.on("/api/v1/delegations/refresh", failure(401, "invalid_grant", { reason: "ended" }));
-    await h.app.onCommand(cmd("/swamp", "run x"), ack, h.respond);
+    await h.app.onCommand(cmd("/slackwater", "run x"), ack, h.respond);
     assertStringIncludes(h.responses[0].text, "Your swamp link has ended");
     assertEquals(await h.store.getLink(PAT), undefined);
     assertEquals(h.serve.callsTo("/api/v1/action"), []);
@@ -603,7 +603,7 @@ Deno.test("a not_admitted refusal keeps the link", async () => {
       "/api/v1/delegations/refresh",
       failure(401, "invalid_grant", { reason: "not_admitted" }),
     );
-    await h.app.onCommand(cmd("/swamp", "run x"), ack, h.respond);
+    await h.app.onCommand(cmd("/slackwater", "run x"), ack, h.respond);
     assertStringIncludes(h.responses[0].text, "isn't letting you in right now");
     assert(await h.store.getLink(PAT));
   });
@@ -630,7 +630,7 @@ Deno.test("serve saying unauthorized gets one refresh and one retry", async () =
           ? failure(401, "unauthorized")
           : actionOk("workflow.run", { runId: "run-1", workflowName: "x", replayed: false }),
     );
-    await h.app.onCommand(cmd("/swamp", "run x"), ack, h.respond);
+    await h.app.onCommand(cmd("/slackwater", "run x"), ack, h.respond);
     const runs = h.serve.callsTo("/api/v1/action");
     assertEquals(runs.length, 2);
     assertEquals(runs[0].body.payload, runs[1].body.payload, "same idempotency key on the retry");
@@ -641,7 +641,7 @@ Deno.test("serve not answering is reported plainly", async () => {
   await harness(async (h) => {
     await h.store.putLink(linkFor());
     h.serve.on("action:workflow.run", { ...failure(500, "x"), delayMs: 3_000 });
-    await h.app.onCommand(cmd("/swamp", "run x"), ack, h.respond);
+    await h.app.onCommand(cmd("/slackwater", "run x"), ack, h.respond);
     assertEquals(h.responses[0].text, "swamp didn't answer. Try again in a moment.");
   });
 });

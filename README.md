@@ -11,7 +11,7 @@ build the same thing in another language.
 
 ## What people see
 
-- `/swamp link` replies, visible only to the person, with a button to sign in to swamp-club and
+- `/slackwater link` replies, visible only to the person, with a button to sign in to swamp-club and
   agree to what the app may do for them. When they agree, the app messages them who they're linked
   as.
 - A command from the commands file, such as `/scale-web`, opens a form. Submitting it starts the
@@ -19,8 +19,12 @@ build the same thing in another language.
 - When the run reaches an approval gate, the message shows the gate's question with **Approve** and
   **Reject**. A click decides as the person who clicked. If serve refuses them, they're told why,
   only they can see it, and nothing is recorded.
-- `/swamp run <workflow> name=value …` runs any workflow without a form. `/swamp status` shows who
-  you're linked as, and `/swamp unlink` ends the link.
+- `/slackwater run <workflow> name=value …` runs any workflow without a form. `/slackwater status`
+  shows who you're linked as, and `/slackwater unlink` ends the link.
+
+`/slackwater` is the app's own command. To call it something else, set `appCommand` in the commands
+file, or change `DEFAULT_APP_COMMAND` in [`src/commands.ts`](src/commands.ts), then rebuild the
+manifest.
 
 ## How it works
 
@@ -130,7 +134,7 @@ deno task start
 ```
 
 It logs one JSON line per event: event names, ids and serve's error codes, never tokens or URLs.
-Check it works with `/swamp link` in Slack.
+Check it works with `/slackwater link` in Slack.
 
 ## Commands
 
@@ -138,6 +142,7 @@ Check it works with `/swamp link` in Slack.
 inputs:
 
 ```yaml
+appCommand: /slackwater # the app's own command; this is the default
 ceiling: # what a person agrees the app may do for them; must fit the integration's ceiling
   - actions: [run, read, approve]
     resource: "workflow:scale-web"

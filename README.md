@@ -195,8 +195,8 @@ the number of web servers, waits at an approval gate, then applies it. For now i
 keeps the server count in a local file, so the Slack side can be tried with no cloud account.
 
 To try it, serve `demo/swamp` with the setup above, using its `serve.yaml`, which turns on the audit
-trail (`swamp serve --config serve.yaml --auth-mode oauth ...`). Then give yourself the grant shown
-in [Serve](#1-serve).
+trail (`swamp serve --config serve.yaml --dashboard --auth-mode oauth ...`; `--dashboard` adds a web
+view of runs at `/dashboard`). Then give yourself the grant shown in [Serve](#1-serve).
 
 The workflow sets `autoResume: true`, so serve carries on by itself once the gate is approved.
 

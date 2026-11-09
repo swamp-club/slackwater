@@ -1,0 +1,7 @@
+# Serve settings for the demo. Start serve with: swamp serve --config serve.yaml ...
+#
+# Keep an audit trail. Without an audit section serve records no audit events,
+# and `swamp audit log` comes back empty.
+audit:
+  stores:
+    - target: default

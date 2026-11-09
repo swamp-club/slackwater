@@ -1,0 +1,81 @@
+id: cd574127-0162-471d-a38a-dcb3b68c2faa
+name: scale-web
+description: >-
+  Change how many web servers run, after someone approves the plan. This
+  version fakes AWS: it keeps the server count in a local file, so the Slack
+  side can be tried without an AWS account.
+# Serve resumes the run once the gate is approved. A workflow with inputs
+# must opt in to that itself.
+autoResume: true
+tags:
+  demo: slackwater
+inputs:
+  properties:
+    count:
+      type: integer
+      minimum: 0
+      maximum: 4
+      description: How many web servers to run
+    reason:
+      type: string
+      description: Why, for the approver and the audit trail
+  required: ["count"]
+jobs:
+  - name: main
+    description: Plan, approve, apply
+    steps:
+      - name: plan
+        description: Work out the change (fake)
+        task:
+          type: behavior
+          behaviorType: command/shell
+          behaviorName: scale-web-plan
+          methodName: execute
+          inputs:
+            run: >-
+              f="${SLACKWATER_DEMO_STATE:-/tmp/slackwater-demo-web-count}";
+              current=$(cat "$f" 2>/dev/null || echo 2);
+              echo "web-demo: $current -> ${{ inputs.count }} servers (fake AWS)"
+      - name: approve
+        description: Someone agrees to the change
+        dependsOn:
+          - step: plan
+            condition:
+              type: succeeded
+        task:
+          type: manual_approval
+          prompt: >-
+            Scale web-demo to ${{ inputs.count }} servers?
+            Reason: ${{ inputs.?reason.orValue('none given') }}
+          timeout: 3600
+      - name: apply
+        description: Set the new server count (fake)
+        dependsOn:
+          - step: approve
+            condition:
+              type: succeeded
+        task:
+          type: behavior
+          behaviorType: command/shell
+          behaviorName: scale-web-apply
+          methodName: execute
+          inputs:
+            run: >-
+              sleep 3;
+              echo ${{ inputs.count }} > "${SLACKWATER_DEMO_STATE:-/tmp/slackwater-demo-web-count}";
+              echo "desired count set to ${{ inputs.count }} (fake AWS)"
+      - name: wait-for-servers
+        description: Wait until the servers are in service (fake)
+        dependsOn:
+          - step: apply
+            condition:
+              type: succeeded
+        task:
+          type: behavior
+          behaviorType: command/shell
+          behaviorName: scale-web-wait
+          methodName: execute
+          inputs:
+            run: >-
+              sleep 6; echo "${{ inputs.count }} of ${{ inputs.count }} servers in service (fake AWS)"
+version: 1

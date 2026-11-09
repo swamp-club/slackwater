@@ -5,7 +5,7 @@
     "ci": "deno fmt --check && deno lint && deno task check && deno task test",
     "secrets": "gitleaks git --redact --no-banner . && gitleaks dir --redact --no-banner .",
     "hooks": "git config core.hooksPath .githooks",
-    "start": "deno run --env-file=.env --allow-net --allow-env --allow-read --allow-write=state,./state src/main.ts",
+    "start": "deno run --env-file=.env --allow-net --allow-env --allow-read --allow-sys=osRelease,hostname,homedir --allow-write=state,./state src/main.ts",
     "manifest": "deno run --allow-read --allow-env scripts/manifest.ts"
   },
   "fmt": {

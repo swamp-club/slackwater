@@ -35,7 +35,11 @@ async function main() {
     socketMode: true,
     // Bolt's debug level logs event bodies. Stay at INFO.
     logLevel: LogLevel.INFO,
+    // Check the tokens in init() below, where a failure can be reported
+    // properly, rather than in the constructor.
+    deferInitialization: true,
   });
+  await bolt.init();
 
   const who = await bolt.client.auth.test();
   if (!who.team_id) throw new Error("Slack's auth.test didn't say which workspace this is");
@@ -134,7 +138,15 @@ main().catch((error) => {
   // an unexpected error's message isn't known to be free of secrets.
   const safe = error instanceof SetupError
     ? error.message
+    : slackCode(error)
+    ? `Slack refused: ${slackCode(error)} (check SLACK_BOT_TOKEN and SLACK_APP_TOKEN)`
     : (error as Error)?.name ?? "unknown error";
   console.error(`slackwater: ${safe}`);
   Deno.exit(1);
 });
+
+/** Slack's Web API errors carry a short code such as `invalid_auth`, which is safe to print. */
+function slackCode(error: unknown): string | undefined {
+  const code = (error as { data?: { error?: unknown } })?.data?.error;
+  return typeof code === "string" && /^[a-z_]{1,64}$/.test(code) ? code : undefined;
+}

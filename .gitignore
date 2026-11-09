@@ -1,0 +1,10 @@
+# Configuration with real values. Only .env.example is committed.
+.env
+.env.*
+!.env.example
+
+# The local token store and run watch list.
+state/
+
+coverage/
+.DS_Store

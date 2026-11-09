@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Scan for secrets before anything leaves this machine. Install with: deno task hooks
+set -euo pipefail
+
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo "pre-push: gitleaks is not installed, so the secret scan can't run. Install it and push again." >&2
+  exit 1
+fi
+
+exec deno task secrets

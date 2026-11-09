@@ -14,5 +14,8 @@
       "tags": ["recommended"]
     }
   },
-  "exclude": ["state/", "coverage/"]
+  "exclude": ["state/", "coverage/"],
+  "imports": {
+    "@std/assert": "jsr:@std/assert@^1.0.19"
+  }
 }

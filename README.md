@@ -87,7 +87,25 @@ swamp access integration register slackwater --name "Slackwater" \
   (step 3).
 
 People still need their own grants on serve: run, read and approve on the workflows they'll use. The
-ceiling only limits what the app may do; it never adds to what a person may do.
+ceiling only limits what the app may do; it never adds to what a person may do. This includes
+serve's admins: an admin's blanket authority doesn't carry through an integration, so admins need
+the same grants as everyone else.
+
+```sh
+swamp access grant create --subject user:<their id> --allow run,read,approve --on workflow:scale-web
+```
+
+Turn on serve's audit trail, so there's a record of who did what through the app. Without an `audit`
+section in serve's config, serve keeps no audit events. The minimum is:
+
+```yaml
+audit:
+  stores:
+    - target: default
+```
+
+`swamp audit log` then shows each request with the person, the workflow and `integration:slackwater`
+as the client.
 
 ### 2. The Slack app
 
@@ -176,11 +194,9 @@ them in step with the workflow. If they disagree, serve refuses the run and the 
 the number of web servers, waits at an approval gate, then applies it. For now it **fakes AWS** and
 keeps the server count in a local file, so the Slack side can be tried with no cloud account.
 
-To try it, serve `demo/swamp` with the setup above and give yourself the grant:
-
-```sh
-swamp access grant create --subject <you> --allow run,read,approve --on workflow:scale-web
-```
+To try it, serve `demo/swamp` with the setup above, using its `serve.yaml`, which turns on the audit
+trail (`swamp serve --config serve.yaml --auth-mode oauth ...`). Then give yourself the grant shown
+in [Serve](#1-serve).
 
 The workflow sets `autoResume: true`, so serve carries on by itself once the gate is approved.
 

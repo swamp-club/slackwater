@@ -229,3 +229,7 @@ The workflow sets `autoResume: true`, so serve carries on by itself once the gat
 | `demo/`               | The scale-the-web-tier commands, manifest and swamp repository |
 
 See [SECURITY.md](SECURITY.md) to report a security problem.
+
+## Licence
+
+Slackwater is licensed under the [Apache License, Version 2.0](LICENSE).

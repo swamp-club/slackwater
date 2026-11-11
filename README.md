@@ -43,7 +43,9 @@ Slack ──Socket Mode──▶ Slackwater ──HTTPS──▶ swamp serve ─
    access token. Serve applies their own grants, cut down to the ceiling. The app never decides who
    may do what.
 3. **Staying linked.** The app refreshes the access token before it expires. If serve refuses a
-   refresh, the link is over and the person is asked to link again.
+   refresh with `not_admitted`, `suspended` or `links_unavailable`, the link is paused: the app
+   keeps the tokens and tells the person why. Any other refusal means the link is over, and the
+   person is asked to link again.
 
 Details worth knowing before you change anything:
 
@@ -54,6 +56,11 @@ Details worth knowing before you change anything:
   click gets `already_decided`.
 - Slack must hear back within 3 seconds. Every handler acknowledges first and does the slow part
   afterwards.
+- If the swamp-club account that agreed has a different email from the person's Slack profile, the
+  link stands (swamp-club only allows that after the person confirms the account is theirs), and the
+  app tells them which account they're linked as.
+- If serve answers `consent_required`, the person's grants allow the action but they didn't agree to
+  it when linking. The app asks them to link again.
 - Only people in the workspace the app is installed in are served. People from other workspaces, for
   example in Slack Connect channels, are refused.
 
@@ -70,8 +77,13 @@ Serve must run in OAuth mode and admit the people who will link:
 swamp serve --auth-mode oauth --allowed-collectives <your-collective> --admins <you> ...
 ```
 
-swamp-club must have links turned on for your collective. Then register the app as an integration on
-the serve's repository:
+Serve must be registered to your collective: start it the first time with a collective API token
+(`swamp auth token create --collective <your-collective> --scopes oauth:manage,serve:*`, passed as
+`SWAMP_API_KEY`), so its swamp-club client belongs to the collective. swamp-club offers links only
+to a collective's serve.
+
+Your collective must be on an active trial or a paid plan, which every collective needs for links.
+Then register the app as an integration on the serve's repository:
 
 ```sh
 swamp access integration register slackwater --name "Slackwater" \

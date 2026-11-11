@@ -391,6 +391,7 @@ export class Slackwater {
         redeemSecret: started.redeemSecret,
         giveUpAt: this.#now() + started.expiresIn * 1000 + 60_000,
         interval: started.interval,
+        ...(profile.email ? { email: profile.email } : {}),
       });
       this.#linkNext.set(key(person), this.#now() + started.interval * 1000);
       this.#d.log("link_started", { pendingId: started.pendingId });
@@ -418,7 +419,7 @@ export class Slackwater {
         case "pending":
           this.#linkNext.set(key(person), this.#now() + outcome.interval * 1000);
           return;
-        case "issued":
+        case "issued": {
           await this.#d.store.putLink({
             ...person,
             ...outcome.tokens,
@@ -426,7 +427,14 @@ export class Slackwater {
             linkedAt: new Date(this.#now()).toISOString(),
           });
           this.#d.log("linked", { delegationId: outcome.tokens.delegationId });
+          // swamp-club lets a different account agree once it confirms the account is its own;
+          // keep the link and say plainly which account it is
+          const linkedEmail = outcome.person.email;
+          if (linkedEmail && differs(pending.email, linkedEmail)) {
+            return done(msg.linkedOtherAccount(outcome.person.username, linkedEmail, this.#app));
+          }
           return done(msg.linked(outcome.person.username));
+        }
         case "refused":
           this.#d.log("link_refused", { reason: outcome.reason });
           return done(msg.linkRefused(outcome.reason, this.#app));
@@ -543,7 +551,11 @@ export class Slackwater {
           continue;
         }
         this.#d.log("serve_refused", { code: error.code, status: error.status });
-        await tell({ text: msg.explain(error.code) });
+        await tell(
+          error.code === "consent_required"
+            ? msg.consentRequired(this.#app)
+            : { text: msg.explain(error.code) },
+        );
         return undefined;
       }
     }
@@ -572,8 +584,8 @@ function tokenProblem(token: Exclude<TokenResult, { ok: true }>, app: string): M
       return msg.notLinked(app);
     case "link_ended":
       return msg.linkGone(app);
-    case "not_admitted":
-      return msg.notAdmitted();
+    case "paused":
+      return msg.paused(token.reason);
     case "serve_unavailable":
       return { text: msg.explain("unreachable") };
   }
@@ -583,6 +595,9 @@ function pollEvery(ageMs: number): number {
   for (const [until, every] of POLL_STEPS) if (ageMs < until) return every;
   return POLL_STEPS[POLL_STEPS.length - 1][1];
 }
+
+const differs = (sent: string | undefined, linked: string) =>
+  sent !== undefined && sent.toLowerCase() !== linked.toLowerCase();
 
 const key = (p: PersonKey) => `${p.teamId}/${p.userId}`;
 

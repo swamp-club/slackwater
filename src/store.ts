@@ -36,6 +36,8 @@ export interface PendingLinkRecord extends PersonKey {
   giveUpAt: number;
   /** seconds between redeem polls, as serve asked */
   interval: number;
+  /** the Slack email sent with the link, to compare with the account that agreed */
+  email?: string;
 }
 
 export interface WatchedRunRecord {

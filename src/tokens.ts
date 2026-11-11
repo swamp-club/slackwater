@@ -7,13 +7,13 @@
  * - Makes one refresh at a time per person. Serve keeps the refresh token and
  *   the two previous access tokens valid, so racing refreshes would be
  *   harmless, but there's no reason to send them.
- * - A refused refresh ends the link here too, unless the reason is
- *   `not_admitted`, which can recover: the tokens are kept and the person is
- *   told serve refused them for now.
+ * - A refused refresh ends the link here too, unless serve says the link can
+ *   recover (`not_admitted`, `suspended`, `links_unavailable`): then the
+ *   tokens are kept and the person is told why serve refused them for now.
  * - If serve can't be reached, the current token is used while it still works.
  */
 
-import { type ServeClient, ServeError } from "./serve/client.ts";
+import { RECOVERABLE_REFRESH_REASONS, type ServeClient, ServeError } from "./serve/client.ts";
 import type { Secret } from "./serve/secret.ts";
 import type { LinkRecord, PersonKey, Store } from "./store.ts";
 
@@ -24,8 +24,8 @@ export type TokenResult =
   | { ok: true; accessToken: Secret; link: LinkRecord }
   /** not linked, or the link ended (`reason` says why when serve refused) */
   | { ok: false; why: "not_linked" | "link_ended"; reason?: string }
-  /** serve refused for now; the link is kept */
-  | { ok: false; why: "not_admitted" }
+  /** serve refused for now; the link is kept. `reason` is serve's */
+  | { ok: false; why: "paused"; reason: string }
   /** serve couldn't be reached and the token has run out */
   | { ok: false; why: "serve_unavailable" };
 
@@ -86,7 +86,9 @@ export class TokenKeeper {
         await this.store.putLink(updated);
         return { ok: true, accessToken: updated.accessToken, link: updated };
       }
-      if (outcome.reason === "not_admitted") return { ok: false, why: "not_admitted" };
+      if (RECOVERABLE_REFRESH_REASONS.has(outcome.reason)) {
+        return { ok: false, why: "paused", reason: outcome.reason };
+      }
       await this.store.deleteLink(link);
       return { ok: false, why: "link_ended", reason: outcome.reason };
     } catch (error) {

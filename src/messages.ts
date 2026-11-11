@@ -60,6 +60,16 @@ export const linked = (username: string | undefined): Message => ({
     : "You're linked to swamp. Swamp will act as you, within what you agreed to.",
 });
 
+export const linkedOtherAccount = (
+  username: string | undefined,
+  email: string,
+  app: string,
+): Message => ({
+  text: `You're linked to swamp as *${esc(username ?? email)}* (${esc(email)}), ` +
+    "which isn't the email on your Slack profile. Swamp will act as that account. " +
+    `If it isn't yours, run \`${app} unlink\` now and tell your swamp admin.`,
+});
+
 export const linkRefused = (reason: string, app: string): Message => ({
   text: reason === "email_mismatch"
     ? "Linking was refused: your Slack email doesn't match your swamp-club email."
@@ -79,9 +89,30 @@ export const linkGone = (app: string): Message => ({
     `Run \`${app} link\` to link again.`,
 });
 
-export const notAdmitted = (): Message => ({
-  text: "swamp isn't letting you in right now, so Swamp can't act for you. " +
-    "Check with your swamp admin that you're still in the collective.",
+/** Serve refused a refresh for a reason the link recovers from. */
+export function paused(reason: string): Message {
+  switch (reason) {
+    case "suspended":
+      return {
+        text: "Your swamp-club account is suspended, so Swamp can't act for you. " +
+          "Your link is kept, and works again if the suspension is lifted.",
+      };
+    case "links_unavailable":
+      return {
+        text: "swamp can't check your link with swamp-club right now, so Swamp can't act for " +
+          "you. Your link is kept. If this lasts, tell whoever runs swamp.",
+      };
+    default:
+      return {
+        text: "swamp isn't letting you in right now, so Swamp can't act for you. " +
+          "Check with your swamp admin that you're still in the collective.",
+      };
+  }
+}
+
+export const consentRequired = (app: string): Message => ({
+  text: "You didn't agree to let Swamp do that when you linked. " +
+    `Run \`${app} link\` to see what Swamp asks for now and agree again.`,
 });
 
 export const unlinked = (toldServe: boolean): Message => ({
@@ -241,6 +272,12 @@ export function explain(code: string): string {
     case "email_required":
       return "Swamp needs your email to link you, and Slack didn't give it. " +
         "Ask whoever runs Swamp to check its users:read.email permission.";
+    case "links_require_plan":
+      return "Linking needs your Swamp collective to be on a trial or a paid plan. " +
+        "Tell whoever runs Swamp.";
+    case "links_require_collective_client":
+      return "This Swamp can't link accounts until it's set up with a collective API key. " +
+        "Tell whoever runs it.";
     case "links_not_enabled":
     case "links_unavailable":
     case "no_instance":

@@ -249,6 +249,74 @@ Deno.test("link: consent URL goes only to the person, then the poll stores token
   });
 });
 
+Deno.test("link: a different account agreeing keeps the link and names that account", async () => {
+  await harness(async ({ serve, slack, store, app, respond, clock }) => {
+    serve.on("/api/v1/delegations/links", {
+      status: 201,
+      body: {
+        pendingId: "pend-1",
+        redeemSecret: REDEEM_SECRET,
+        consentUrl: CONSENT_URL,
+        expiresIn: 900,
+        interval: 5,
+      },
+    });
+    serve.on("/api/v1/delegations/redeem", {
+      status: 200,
+      body: {
+        status: "issued",
+        delegationId: "dlg-1",
+        accessToken: ACCESS_TOKEN,
+        accessTokenExpiresAt: "2026-11-09T21:00:00.000Z",
+        refreshToken: REFRESH_TOKEN,
+        expiresAt: "2026-12-09T20:00:00.000Z",
+        person: { username: "sam", email: "sam@example.com" },
+      },
+    });
+
+    await app.onCommand(cmd("/slackwater", "link"), ack, respond);
+    clock.now += 5_000;
+    await app.tick();
+    assert(await store.getLink(PAT));
+    const said = slack.texts("post").join();
+    assertStringIncludes(said, "linked to swamp as *sam* (sam@example.com)");
+    assertStringIncludes(said, "isn't the email on your Slack profile");
+  });
+});
+
+Deno.test("link: the same email in another case counts as a match", async () => {
+  await harness(async ({ serve, slack, app, respond, clock }) => {
+    serve.on("/api/v1/delegations/links", {
+      status: 201,
+      body: {
+        pendingId: "pend-1",
+        redeemSecret: REDEEM_SECRET,
+        consentUrl: CONSENT_URL,
+        expiresIn: 900,
+        interval: 5,
+      },
+    });
+    serve.on("/api/v1/delegations/redeem", {
+      status: 200,
+      body: {
+        status: "issued",
+        delegationId: "dlg-1",
+        accessToken: ACCESS_TOKEN,
+        accessTokenExpiresAt: "2026-11-09T21:00:00.000Z",
+        refreshToken: REFRESH_TOKEN,
+        person: { username: "pat", email: "Pat@Example.com" },
+      },
+    });
+
+    await app.onCommand(cmd("/slackwater", "link"), ack, respond);
+    clock.now += 5_000;
+    await app.tick();
+    const said = slack.texts("post").join();
+    assertStringIncludes(said, "linked to swamp as *pat*");
+    assertEquals(said.includes("isn't the email"), false);
+  });
+});
+
 Deno.test("link: a refused link tells the person why", async () => {
   await harness(async ({ serve, slack, store, app, respond, clock }) => {
     serve.on("/api/v1/delegations/links", {
@@ -280,6 +348,21 @@ Deno.test("link: serve's refusal to start is explained without detail", async ()
     assertStringIncludes(responses[0].text, "isn't set up correctly");
   });
 });
+
+for (
+  const [code, status, words] of [
+    ["links_require_plan", 409, "trial or a paid plan"],
+    ["links_require_collective_client", 409, "collective API key"],
+  ] as const
+) {
+  Deno.test(`link: ${code} tells the person what the operative must fix`, async () => {
+    await harness(async ({ serve, app, respond, responses }) => {
+      serve.on("/api/v1/delegations/links", failure(status, code));
+      await app.onCommand(cmd("/slackwater", "link"), ack, respond);
+      assertStringIncludes(responses[0].text, words);
+    });
+  });
+}
 
 Deno.test("unlink ends the link at serve and forgets the tokens", async () => {
   await harness(async ({ serve, store, app, respond, responses }) => {
@@ -409,6 +492,17 @@ Deno.test("serve's refusal is reported in serve's terms", async () => {
     serve.on("action:workflow.run", failure(403, "forbidden"));
     await app.onCommand(cmd("/slackwater", "run not-in-ceiling"), ack, respond);
     assertEquals(responses[0].text, "swamp refused: you don't have permission to do that.");
+  });
+});
+
+Deno.test("consent_required asks the person to link again and keeps the link", async () => {
+  await harness(async ({ serve, store, app, respond, responses }) => {
+    await store.putLink(linkFor());
+    serve.on("action:workflow.run", failure(403, "consent_required"));
+    await app.onCommand(cmd("/slackwater", "run newly-allowed"), ack, respond);
+    assertStringIncludes(responses[0].text, "didn't agree to let Swamp do that");
+    assertStringIncludes(responses[0].text, "/slackwater link");
+    assert(await store.getLink(PAT));
   });
 });
 
@@ -596,18 +690,24 @@ Deno.test("a refused refresh ends the link and tells the person to link again", 
   });
 });
 
-Deno.test("a not_admitted refusal keeps the link", async () => {
-  await harness(async (h) => {
-    await h.store.putLink(linkFor(PAT, "2026-11-09T20:03:00.000Z"));
-    h.serve.on(
-      "/api/v1/delegations/refresh",
-      failure(401, "invalid_grant", { reason: "not_admitted" }),
-    );
-    await h.app.onCommand(cmd("/slackwater", "run x"), ack, h.respond);
-    assertStringIncludes(h.responses[0].text, "isn't letting you in right now");
-    assert(await h.store.getLink(PAT));
+for (
+  const [reason, says] of [
+    ["not_admitted", "isn't letting you in right now"],
+    ["suspended", "account is suspended"],
+    ["links_unavailable", "can't check your link with swamp-club"],
+  ]
+) {
+  Deno.test(`a ${reason} refusal keeps the link and says why`, async () => {
+    await harness(async (h) => {
+      await h.store.putLink(linkFor(PAT, "2026-11-09T20:03:00.000Z"));
+      h.serve.on("/api/v1/delegations/refresh", failure(401, "invalid_grant", { reason }));
+      await h.app.onCommand(cmd("/slackwater", "run x"), ack, h.respond);
+      assertStringIncludes(h.responses[0].text, says);
+      assert(await h.store.getLink(PAT));
+      assertEquals(h.serve.callsTo("/api/v1/action"), []);
+    });
   });
-});
+}
 
 Deno.test("serve saying unauthorized gets one refresh and one retry", async () => {
   await harness(async (h) => {

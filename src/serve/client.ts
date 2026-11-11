@@ -107,19 +107,35 @@ export type RedeemOutcome =
   | { status: "ended"; cause: string };
 
 /**
- * Why serve refused a refresh. Only `not_admitted` can recover: the person
- * isn't currently admitted to the collective, and may be again. Every other
- * reason means the link is over and the person has to link again.
+ * Why serve refused a refresh. Three reasons can recover, so the app keeps the
+ * tokens and tries again later:
+ *
+ * - `not_admitted`: the person isn't currently admitted to the serve's
+ *   collective, and may be again.
+ * - `suspended`: swamp-club has suspended the person's account.
+ * - `links_unavailable`: serve has paused the link for another reason, for
+ *   example swamp-club refusing serve's own client or not knowing the link.
+ *
+ * Every other reason means the link is over and the person has to link again.
  */
 export type RefreshRefusalReason =
   | "mismatch"
   | "unknown"
   | "not_issued"
   | "not_admitted"
+  | "suspended"
+  | "links_unavailable"
   | "ended"
   | "expired"
   | "superseded"
   | "unreadable";
+
+/** The refresh refusals a link recovers from. */
+export const RECOVERABLE_REFRESH_REASONS: ReadonlySet<string> = new Set([
+  "not_admitted",
+  "suspended",
+  "links_unavailable",
+]);
 
 export type RefreshOutcome =
   | { status: "refreshed"; accessToken: Secret; accessTokenExpiresAt: string; expiresAt?: string }
@@ -207,7 +223,8 @@ export interface DecisionRecorded {
  *   `already_redeemed`, `invalid_grant` (a dead token, with `reason`),
  *   `team_not_ready` (try the same call again), `rate_limited`
  * - action route: `unauthorized` (the access token is dead), `forbidden`
- *   (serve refused this person), and for gates `already_decided`,
+ *   (serve refused this person), `consent_required` (the person's grants
+ *   allow it, but they didn't agree to it when linking), and for gates `already_decided`,
  *   `gate_reopened`, `gate_closed`, `gate_not_open`
  */
 export class ServeError extends Error {
